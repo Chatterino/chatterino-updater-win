@@ -20,4 +20,4 @@ jobs:
 
     - name: tree
       run: |
-        tree
+        tree /F
