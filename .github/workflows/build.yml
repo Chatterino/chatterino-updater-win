@@ -1,0 +1,15 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v6
+    - name: Build
+      working-directory: ChatterinoUpdater
+      run: msbuild -p:Configuration=Release
