@@ -21,3 +21,19 @@ jobs:
     - name: tree
       run: |
         tree /F
+
+    - name: Package
+      shell: pwsh
+      run: |
+        mkdir pkg
+        cp ./ChatterinoUpdater/ChatterinoUpdater/bin/Release/ChatterinoUpdater.exe ./pkg/
+        cp ./ChatterinoUpdater/ChatterinoUpdater/dll/ICSharpCode.SharpZipLib.dll ./pkg/
+        cp ./ChatterinoUpdater/ChatterinoUpdater/dll/LICENSE.txt ./pkg/SharpZipLib_LICENSE.txt
+        7z a ChatterinoPortableUpdater.zip ./pkg/*
+        ./ChatterinoUpdater/ChatterinoUpdater/bin/Release/ChatterinoUpdater.exe
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v6
+      with:
+        name: ChatterinoPortableUpdater.zip
+        path: ChatterinoPortableUpdater.zip
