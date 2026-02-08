@@ -17,3 +17,7 @@ jobs:
     - name: Build
       working-directory: ChatterinoUpdater
       run: msbuild -p:Configuration=Release
+
+    - name: tree
+      run: |
+        tree
