@@ -45,10 +45,12 @@ namespace ChatterinoUpdater
 
         private void startInstall()
         {
+            var parentDir = new FileInfo(Assembly.GetEntryAssembly().Location).Directory.Parent.FullName;
+            var miscDir = Path.Combine(parentDir, "Misc");
+
             Task.Run(() =>
             {
-                string zipPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), @"Chatterino\update2.zip");
+                string zipPath = Path.Combine(miscDir, "update.zip");
 
                 try
                 {
