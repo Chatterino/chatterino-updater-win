@@ -2,15 +2,13 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Threading;
-using System.Windows.Forms;
 
 namespace ChatterinoUpdater
 {
     internal static class Program
     {
         [STAThread]
-        private static void Main(String[] args)
+        private static void Main(string[] args)
         {
 #if !DEBUG
             try
@@ -18,22 +16,17 @@ namespace ChatterinoUpdater
             {
                 var baseDir = AppContext.BaseDirectory;
 
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
-
                 if (args.Length == 0)
                 {
-                    MessageBox.Show("The updater can not be ran manually.", "Chatterino Updater");
+                    Console.WriteLine("The updater can not be ran manually.");
                     return;
                 }
 
                 Directory.SetCurrentDirectory(baseDir);
 
-                var mainForm = new MainForm();
-
-                if (args.Contains("restart"))
+                if (RunUpdater())
                 {
-                    mainForm.SuccessCallback = () =>
+                    if (args.Contains("restart"))
                     {
                         try
                         {
@@ -47,10 +40,8 @@ namespace ChatterinoUpdater
                             });
                         }
                         catch { }
-                    };
+                    }
                 }
-
-                Application.Run(mainForm);
             }
 #if !DEBUG
             catch (Exception ex)
@@ -64,6 +55,12 @@ namespace ChatterinoUpdater
                 catch { }
             }
 #endif
+        }
+
+        private static bool RunUpdater()
+        {
+            var updater = new Updater();
+            return updater.StartInstall();
         }
     }
 }

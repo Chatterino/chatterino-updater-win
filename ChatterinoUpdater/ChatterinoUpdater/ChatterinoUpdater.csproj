@@ -1,7 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <RootNamespace>ChatterinoUpdater</RootNamespace>
     <AssemblyName>ChatterinoUpdater</AssemblyName>
     <TargetFramework>net10.0-windows</TargetFramework>
@@ -11,7 +11,6 @@
     <Nullable>enable</Nullable>
     <ApplicationIcon>icon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <UseWindowsForms>True</UseWindowsForms>
     <StartupObject>ChatterinoUpdater.Program</StartupObject>
 	<PublishTrimmed>true</PublishTrimmed>
   </PropertyGroup>
