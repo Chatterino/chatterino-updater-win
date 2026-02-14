@@ -10,8 +10,6 @@ namespace ChatterinoUpdater
     {
         public Action? SuccessCallback { get; set; }
         private readonly string _ownDirectory;
-        private int _fileCount;
-        private int _currentFile = 1;
 
         public Updater()
         {
@@ -20,23 +18,24 @@ namespace ChatterinoUpdater
 
         public bool StartInstall()
         {
-            var baseDir = AppContext.BaseDirectory;
+            var baseDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var parentDir = Directory.GetParent(baseDir)!.FullName;
             var miscDir = Path.Combine(parentDir, "Misc");
-            string zipPath = Path.Combine(miscDir, "update.zip");
+            var zipPath = Path.Combine(miscDir, "update.zip");
 
             try
             {
                 using (var fileStream = File.OpenRead(zipPath))
                 using (var zipArchive = new ZipArchive(fileStream, ZipArchiveMode.Read))
                 {
-                    _fileCount = zipArchive.Entries.Count(x => !string.IsNullOrEmpty(x.Name));
                     var retry = true;
                     while (retry)
                     {
                         try
                         {
                             ProcessZipFile(zipArchive);
+                            retry = false;
+                            Console.WriteLine();
                         }
                         catch
                         {
@@ -62,16 +61,16 @@ namespace ChatterinoUpdater
 
         private void ProcessZipFile(ZipArchive archive)
         {
-            foreach (var entry in archive.Entries)
+            var entries = archive.Entries.Where(x => !string.IsNullOrEmpty(x.Name));
+            var fileCount = entries.Count();
+            var currentFile = 1;
+            foreach (var entry in entries)
             {
-                Console.Write("\r");
                 try
                 {
-                    Console.WriteLine($@"Installing file {_currentFile} of {_fileCount}");
-
+                    Console.Write($"\rInstalling file {currentFile} of {fileCount}");
                     ProcessEntry(entry);
-
-                    break;
+                    currentFile++;
                 }
                 catch (Exception exc)
                 {
@@ -79,7 +78,7 @@ namespace ChatterinoUpdater
                     message += "\n\nIf you have the browser extension enabled you might need to close chrome.";
                     Console.WriteLine(message);
                     Console.WriteLine(exc);
-                    throw; // Pass down exception without changing line number
+                    throw; // Pass down exception without changing things like line number
                 }
             }
         }
@@ -94,6 +93,9 @@ namespace ChatterinoUpdater
             var entryName = Regex.Replace(entry.FullName, "^Chatterino2/", "");
 
             if (entryName.StartsWith(_ownDirectory))
+                return;
+
+            if (entry.Name.Equals("ChatterinoUpdater.exe", StringComparison.OrdinalIgnoreCase))
                 return;
 
             // extract the file
@@ -112,8 +114,6 @@ namespace ChatterinoUpdater
             {
                 input.CopyTo(output);
             }
-
-            _currentFile++;
         }
     }
 }

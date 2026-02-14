@@ -17,7 +17,7 @@ namespace ChatterinoUpdater
             try
 #endif
             {
-                var baseDir = AppContext.BaseDirectory;
+                var baseDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
                 if (args.Length == 0)
                 {
@@ -35,6 +35,7 @@ namespace ChatterinoUpdater
                         {
                             var parentDir = Directory.GetParent(baseDir)!.FullName;
                             var exePath = Path.Combine(parentDir, "chatterino.exe");
+                            Console.WriteLine($"Starting {exePath}");
 
                             Process.Start(new ProcessStartInfo
                             {
