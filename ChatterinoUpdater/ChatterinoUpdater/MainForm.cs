@@ -1,53 +1,67 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Windows.Forms;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Text.RegularExpressions;
+using System.ComponentModel;
 
 namespace ChatterinoUpdater
 {
     public partial class MainForm : Form
     {
-        public Action SuccessCallback { get; set; }
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public Action? SuccessCallback { get; set; }
 
         private readonly string _ownDirectory;
         private int _fileCount;
         private int _currentFile = 1;
-        private ManualResetEvent _continueEvent = new ManualResetEvent(false);
+        private readonly ManualResetEvent _continueEvent = new(false);
 
         public MainForm()
         {
             InitializeComponent();
 
+
+#if NET6_0_OR_GREATER
+            string? exePath = Environment.ProcessPath;
+#else
+            string? exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+#endif
             try
             {
-                Icon = System.Drawing.Icon.ExtractAssociatedIcon(
-                    new FileInfo(Assembly.GetEntryAssembly().Location).FullName);
+                if (!string.IsNullOrEmpty(exePath))
+                {
+                    Icon = System.Drawing.Icon.ExtractAssociatedIcon(exePath);
+                }
             }
             catch { }
 
-            labelStatus.Text = "";
+            labelStatus.Text = string.Empty;
             buttonRetry.Visible = false;
 
             buttonRetry.Click += (s, e) => _continueEvent.Set();
             buttonCancel.Click += (s, e) => Close();
 
-            _ownDirectory = new FileInfo(Assembly.GetEntryAssembly().Location).Directory.Name.TrimEnd('/', '\\') + '/';
+            //_ownDirectory = new FileInfo(Assembly.GetEntryAssembly().Location).Directory.Name.TrimEnd('/', '\\') + '/';
+            //_ownDirectory = Path.GetDirectoryName(exePath)!.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            //_ownDirectory = Path.GetDirectoryName(exePath) + Path.DirectorySeparatorChar;
+            _ownDirectory = AppContext.BaseDirectory;
 
-            startInstall();
+            StartInstall();
         }
 
-        private void startInstall()
+        private void StartInstall()
         {
+            var baseDir = AppContext.BaseDirectory;
+            var parentDir = Directory.GetParent(baseDir)!.FullName;
+            var miscDir = Path.Combine(parentDir, "Misc");
+
             Task.Run(() =>
             {
-                string zipPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), @"Chatterino\update2.zip");
+                string zipPath = Path.Combine(miscDir, "update.zip");
 
                 try
                 {
@@ -56,7 +70,7 @@ namespace ChatterinoUpdater
                     {
                         _fileCount = zipArchive.Entries.Count(x => !string.IsNullOrEmpty(x.Name));
 
-                        processZipFile(zipArchive);
+                        ProcessZipFile(zipArchive);
                     }
 
                     File.Delete(zipPath);
@@ -83,7 +97,7 @@ namespace ChatterinoUpdater
             });
         }
 
-        private void processZipFile(ZipArchive archive)
+        private void ProcessZipFile(ZipArchive archive)
         {
             foreach (var entry in archive.Entries)
             {
@@ -102,7 +116,7 @@ namespace ChatterinoUpdater
                             labelStatus.Text = $@"Installing file {_currentFile} of {_fileCount}";
                         });
 
-                        processEntry(entry);
+                        ProcessEntry(entry);
 
                         break;
                     }
@@ -127,7 +141,7 @@ namespace ChatterinoUpdater
             }
         }
 
-        private void processEntry(ZipArchiveEntry entry)
+        private void ProcessEntry(ZipArchiveEntry entry)
         {
             // skip directories
             if (string.IsNullOrEmpty(entry.Name))

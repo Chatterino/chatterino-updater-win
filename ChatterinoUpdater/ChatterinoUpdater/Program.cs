@@ -1,11 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace ChatterinoUpdater
@@ -19,6 +16,8 @@ namespace ChatterinoUpdater
             try
 #endif
             {
+                var baseDir = AppContext.BaseDirectory;
+
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
 
@@ -28,7 +27,7 @@ namespace ChatterinoUpdater
                     return;
                 }
 
-                Directory.SetCurrentDirectory(new FileInfo(Assembly.GetEntryAssembly().Location).Directory.FullName);
+                Directory.SetCurrentDirectory(baseDir);
 
                 var mainForm = new MainForm();
 
@@ -38,9 +37,14 @@ namespace ChatterinoUpdater
                     {
                         try
                         {
-                            var parentDir = new FileInfo(Assembly.GetEntryAssembly().Location).Directory.Parent.FullName;
+                            var parentDir = Directory.GetParent(baseDir)!.FullName;
+                            var exePath = Path.Combine(parentDir, "chatterino.exe");
 
-                            Process.Start(Path.Combine(parentDir, "chatterino.exe"));
+                            Process.Start(new ProcessStartInfo
+                            {
+                                FileName = exePath,
+                                UseShellExecute = true
+                            });
                         }
                         catch { }
                     };
@@ -51,12 +55,13 @@ namespace ChatterinoUpdater
 #if !DEBUG
             catch (Exception exc)
             {
-                handleDankError(exc);
+                HandleDankError(exc);
             }
 #endif
         }
 
-        private static void handleDankError(Exception exc)
+#if !DEBUG
+        private static void HandleDankError(Exception exc)
         {
             try
             {
@@ -66,5 +71,6 @@ namespace ChatterinoUpdater
             }
             catch { }
         }
+#endif
     }
 }
