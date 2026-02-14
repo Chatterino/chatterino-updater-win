@@ -45,9 +45,6 @@ namespace ChatterinoUpdater
             buttonRetry.Click += (s, e) => _continueEvent.Set();
             buttonCancel.Click += (s, e) => Close();
 
-            //_ownDirectory = new FileInfo(Assembly.GetEntryAssembly().Location).Directory.Name.TrimEnd('/', '\\') + '/';
-            //_ownDirectory = Path.GetDirectoryName(exePath)!.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-            //_ownDirectory = Path.GetDirectoryName(exePath) + Path.DirectorySeparatorChar;
             _ownDirectory = AppContext.BaseDirectory;
 
             StartInstall();

@@ -53,24 +53,17 @@ namespace ChatterinoUpdater
                 Application.Run(mainForm);
             }
 #if !DEBUG
-            catch (Exception exc)
+            catch (Exception ex)
             {
-                HandleDankError(exc);
+                try
+                {
+                    Thread.CurrentThread.CurrentUICulture = new System.Globalization.CultureInfo("en-US");
+
+                    MessageBox.Show("An unexpected error has occured. You might have to redownload the chatterino installer.\n\n" + ex.Message);
+                }
+                catch { }
             }
 #endif
         }
-
-#if !DEBUG
-        private static void HandleDankError(Exception exc)
-        {
-            try
-            {
-                Thread.CurrentThread.CurrentUICulture = new System.Globalization.CultureInfo("en-US");
-
-                MessageBox.Show("An unexpected error has occured. You might have to redownload the chatterino installer.\n\n" + exc.Message);
-            }
-            catch { }
-        }
-#endif
     }
 }
