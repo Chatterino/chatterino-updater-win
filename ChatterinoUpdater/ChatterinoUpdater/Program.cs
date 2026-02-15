@@ -1,70 +1,70 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
+#if !DEBUG
 using System.Threading;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+#endif
 
 namespace ChatterinoUpdater
 {
     internal static class Program
     {
         [STAThread]
-        private static void Main(String[] args)
+        private static void Main(string[] args)
         {
 #if !DEBUG
             try
 #endif
             {
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
+                var baseDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
                 if (args.Length == 0)
                 {
-                    MessageBox.Show("The updater can not be ran manually.", "Chatterino Updater");
+                    Console.WriteLine("The updater can not be ran manually.");
                     return;
                 }
 
-                Directory.SetCurrentDirectory(new FileInfo(Assembly.GetEntryAssembly().Location).Directory.FullName);
+                Directory.SetCurrentDirectory(baseDir);
 
-                var mainForm = new MainForm();
-
-                if (args.Contains("restart"))
+                if (RunUpdater())
                 {
-                    mainForm.SuccessCallback = () =>
+                    if (args.Contains("restart"))
                     {
                         try
                         {
-                            var parentDir = new FileInfo(Assembly.GetEntryAssembly().Location).Directory.Parent.FullName;
+                            var parentDir = Directory.GetParent(baseDir)!.FullName;
+                            var exePath = Path.Combine(parentDir, "chatterino.exe");
+                            Console.WriteLine($"Starting {exePath}");
 
-                            Process.Start(Path.Combine(parentDir, "chatterino.exe"));
+                            Process.Start(new ProcessStartInfo
+                            {
+                                FileName = exePath,
+                                UseShellExecute = true
+                            });
                         }
                         catch { }
-                    };
+                    }
                 }
-
-                Application.Run(mainForm);
             }
 #if !DEBUG
-            catch (Exception exc)
+            catch (Exception ex)
             {
-                handleDankError(exc);
+                try
+                {
+                    Thread.CurrentThread.CurrentUICulture = new System.Globalization.CultureInfo("en-US");
+
+                    Console.WriteLine("An unexpected error has occured. You might have to redownload the chatterino installer.\n\n" + ex.Message);
+                }
+                catch { }
             }
 #endif
         }
 
-        private static void handleDankError(Exception exc)
+        private static bool RunUpdater()
         {
-            try
-            {
-                Thread.CurrentThread.CurrentUICulture = new System.Globalization.CultureInfo("en-US");
-
-                MessageBox.Show("An unexpected error has occured. You might have to redownload the chatterino installer.\n\n" + exc.Message);
-            }
-            catch { }
+            var updater = new Updater();
+            return updater.StartInstall();
         }
     }
 }
