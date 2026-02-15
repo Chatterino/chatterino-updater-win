@@ -15,11 +15,14 @@ namespace ChatterinoUpdater
             _ownDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         }
 
-        public bool StartInstall()
+        public bool StartInstall(string? zipPath = null)
         {
-            var parentDir = Directory.GetParent(_ownDirectory)!.FullName;
-            var miscDir = Path.Combine(parentDir, "Misc");
-            var zipPath = Path.Combine(miscDir, "update.zip");
+            if (zipPath is null)
+            {
+                var parentDir = Directory.GetParent(_ownDirectory)!.FullName;
+                var miscDir = Path.Combine(parentDir, "Misc");
+                zipPath = Path.Combine(miscDir, "update.zip");
+            }
 
             try
             {
