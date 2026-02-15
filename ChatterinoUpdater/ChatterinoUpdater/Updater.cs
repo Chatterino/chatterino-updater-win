@@ -12,13 +12,12 @@ namespace ChatterinoUpdater
 
         public Updater()
         {
-            _ownDirectory = AppContext.BaseDirectory;
+            _ownDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         }
 
         public bool StartInstall()
         {
-            var baseDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var parentDir = Directory.GetParent(baseDir)!.FullName;
+            var parentDir = Directory.GetParent(_ownDirectory)!.FullName;
             var miscDir = Path.Combine(parentDir, "Misc");
             var zipPath = Path.Combine(miscDir, "update.zip");
 
@@ -108,11 +107,9 @@ namespace ChatterinoUpdater
             }
 
             // write the file
-            using (var input = entry.Open())
-            using (var output = File.Create(outPath))
-            {
-                input.CopyTo(output);
-            }
+            using var input = entry.Open();
+            using var output = File.Create(outPath);
+            input.CopyTo(output);
         }
     }
 }
