@@ -27,7 +27,7 @@ namespace ChatterinoUpdater
 
                 Directory.SetCurrentDirectory(baseDir);
 
-                if (RunUpdater())
+                if (RunUpdater(args[0]))
                 {
                     if (args.Contains("restart"))
                     {
@@ -61,10 +61,9 @@ namespace ChatterinoUpdater
 #endif
         }
 
-        private static bool RunUpdater()
+        private static bool RunUpdater(string zipPath)
         {
-            var updater = new Updater();
-            return updater.StartInstall();
+            return new Updater().StartInstall(zipPath);
         }
     }
 }
