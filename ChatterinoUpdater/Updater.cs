@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -15,15 +16,8 @@ namespace ChatterinoUpdater
             _ownDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         }
 
-        public bool StartInstall(string? zipPath = null)
+        public bool StartInstall(string zipPath)
         {
-            if (zipPath is null)
-            {
-                var parentDir = Directory.GetParent(_ownDirectory)!.FullName;
-                var miscDir = Path.Combine(parentDir, "Misc");
-                zipPath = Path.Combine(miscDir, "update.zip");
-            }
-
             try
             {
                 using (var fileStream = File.OpenRead(zipPath))

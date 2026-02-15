@@ -61,7 +61,7 @@ namespace ChatterinoUpdater
 #endif
         }
 
-        private static bool RunUpdater(string? zipPath)
+        private static bool RunUpdater(string zipPath)
         {
             return new Updater().StartInstall(zipPath);
         }
