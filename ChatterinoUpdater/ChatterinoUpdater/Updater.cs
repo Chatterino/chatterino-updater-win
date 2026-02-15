@@ -8,7 +8,6 @@ namespace ChatterinoUpdater
 {
     public class Updater
     {
-        public Action? SuccessCallback { get; set; }
         private readonly string _ownDirectory;
 
         public Updater()
