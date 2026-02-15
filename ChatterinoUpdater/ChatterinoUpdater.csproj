@@ -10,7 +10,6 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <ApplicationIcon>icon.ico</ApplicationIcon>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
     <StartupObject>ChatterinoUpdater.Program</StartupObject>
 	<PublishTrimmed>true</PublishTrimmed>
   </PropertyGroup>
