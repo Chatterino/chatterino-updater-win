@@ -20,9 +20,10 @@ jobs:
       run: dotnet restore
 
     - name: Build
+      working-directory: ChatterinoUpdater
       run: |
-        dotnet publish -r win-x64 --no-restore -o publish/win-x64
-        dotnet publish -r win-arm64 --no-restore -o publish/win-arm64
+        dotnet publish -r win-x64 -o publish/win-x64
+        dotnet publish -r win-arm64 -o publish/win-arm64
 
     - name: tree
       run: |
@@ -34,8 +35,8 @@ jobs:
         mkdir pkg
         mkdir pkg/x64
         mkdir pkg/arm64
-        cp ./publish/win-x64/ChatterinoUpdater.exe ./pkg/x64
-        cp ./publish/win-arm64/ChatterinoUpdater.exe ./pkg/arm64
+        cp ./ChatterinoUpdater/publish/win-x64/ChatterinoUpdater.exe ./pkg/x64
+        cp ./ChatterinoUpdater/publish/win-arm64/ChatterinoUpdater.exe ./pkg/arm64
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v6
