@@ -4,78 +4,79 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using ChatterinoUpdater.Interop;
 
-namespace ChatterinoUpdater;
-
-internal static class Program
+namespace ChatterinoUpdater
 {
-    private static void Main(string[] args)
+    internal static class Program
     {
-        if (!TryParseArgs(args, out var zipPath, out var restart))
+        private static void Main(string[] args)
         {
-            NativeUI.ShowError("Zip package file wasn't provided", "The updater can not be ran manually.");
-            return;
+            if (!TryParseArgs(args, out var zipPath, out var restart))
+            {
+                NativeUI.ShowError("Zip package file wasn't provided", "The updater can not be ran manually.");
+                return;
+            }
+
+            Run(zipPath, restart);
         }
 
-        Run(zipPath, restart);
-    }
-
-    private static bool TryParseArgs(string[] args, [NotNullWhen(true)] out string? zipPath, out bool restart)
-    {
-        zipPath = null;
-        restart = false;
-
-        foreach (var arg in args)
+        private static bool TryParseArgs(string[] args, [NotNullWhen(true)] out string? zipPath, out bool restart)
         {
-            if (string.Equals(arg, "restart", StringComparison.OrdinalIgnoreCase))
+            zipPath = null;
+            restart = false;
+
+            foreach (var arg in args)
             {
-                restart = true;
-            }
-            else if (zipPath == null)
-            {
-                zipPath = arg;
-            }
-
-            if (restart && zipPath != null)
-            {
-                return true;
-            }
-        }
-
-        return zipPath != null;
-    }
-
-    private static void Run(string zipPath, bool restart)
-    {
-        try
-        {
-            var baseDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-            Directory.SetCurrentDirectory(baseDir);
-
-            if (new Updater(baseDir).StartInstall(zipPath) && restart)
-            {
-                try
+                if (string.Equals(arg, "restart", StringComparison.OrdinalIgnoreCase))
                 {
-                    var parentDir = Directory.GetParent(baseDir)!.FullName;
-                    var exePath = Path.Combine(parentDir, "chatterino.exe");
-
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = exePath,
-                        UseShellExecute = true,
-                        WorkingDirectory = parentDir
-                    });
+                    restart = true;
                 }
-                catch { }
+                else if (zipPath == null)
+                {
+                    zipPath = arg;
+                }
+
+                if (restart && zipPath != null)
+                {
+                    return true;
+                }
             }
+
+            return zipPath != null;
         }
-        catch (Exception ex) when (!Debugger.IsAttached)
+
+        private static void Run(string zipPath, bool restart)
         {
             try
             {
-                NativeUI.ShowError("An unexpected error has occured", "You might have to redownload the chatterino installer.\n\n" + ex.Message);
+                var baseDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+                Directory.SetCurrentDirectory(baseDir);
+
+                if (new Updater(baseDir).StartInstall(zipPath) && restart)
+                {
+                    try
+                    {
+                        var parentDir = Directory.GetParent(baseDir)!.FullName;
+                        var exePath = Path.Combine(parentDir, "chatterino.exe");
+
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = exePath,
+                            UseShellExecute = true,
+                            WorkingDirectory = parentDir
+                        });
+                    }
+                    catch { }
+                }
             }
-            catch { }
+            catch (Exception ex) when (!Debugger.IsAttached)
+            {
+                try
+                {
+                    NativeUI.ShowError("An unexpected error has occured", "You might have to redownload the chatterino installer.\n\n" + ex.Message);
+                }
+                catch { }
+            }
         }
     }
 }
