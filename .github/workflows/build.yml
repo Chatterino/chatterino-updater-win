@@ -15,13 +15,14 @@ jobs:
       uses: actions/setup-dotnet@v5
       with:
         dotnet-version: '10.0.x'
+
     - name: Install dependencies
       run: dotnet restore
 
     - name: Build
       run: |
-        dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
-        dotnet publish -c Release -r win-arm64 --self-contained -p:PublishSingleFile=true
+        dotnet publish -r win-x64 --no-restore -o publish/win-x64
+        dotnet publish -r win-arm64 --no-restore -o publish/win-arm64
 
     - name: tree
       run: |
@@ -33,8 +34,8 @@ jobs:
         mkdir pkg
         mkdir pkg/x64
         mkdir pkg/arm64
-        cp ./ChatterinoUpdater/bin/Release/net10.0/win-x64/publish/ChatterinoUpdater.exe ./pkg/x64
-        cp ./ChatterinoUpdater/bin/Release/net10.0/win-arm64/publish/ChatterinoUpdater.exe ./pkg/arm64
+        cp ./publish/win-x64/ChatterinoUpdater.exe ./pkg/x64
+        cp ./publish/win-arm64/ChatterinoUpdater.exe ./pkg/arm64
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v6

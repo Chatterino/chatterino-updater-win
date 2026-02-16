@@ -1,70 +1,81 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Linq;
-#if !DEBUG
-using System.Threading;
-#endif
+using ChatterinoUpdater.Interop;
 
-namespace ChatterinoUpdater
+namespace ChatterinoUpdater;
+
+internal static class Program
 {
-    internal static class Program
+    private static void Main(string[] args)
     {
-        [STAThread]
-        private static void Main(string[] args)
+        if (!TryParseArgs(args, out var zipPath, out var restart))
         {
-#if !DEBUG
-            try
-#endif
+            NativeUI.ShowError("Zip package file wasn't provided", "The updater can not be ran manually.");
+            return;
+        }
+
+        Run(zipPath, restart);
+    }
+
+    private static bool TryParseArgs(string[] args, [NotNullWhen(true)] out string? zipPath, out bool restart)
+    {
+        zipPath = null;
+        restart = false;
+
+        foreach (var arg in args)
+        {
+            if (string.Equals(arg, "restart", StringComparison.OrdinalIgnoreCase))
             {
-                var baseDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-                if (args.Length == 0)
-                {
-                    Console.WriteLine("The updater can not be ran manually.");
-                    return;
-                }
-
-                Directory.SetCurrentDirectory(baseDir);
-
-                if (RunUpdater())
-                {
-                    if (args.Contains("restart"))
-                    {
-                        try
-                        {
-                            var parentDir = Directory.GetParent(baseDir)!.FullName;
-                            var exePath = Path.Combine(parentDir, "chatterino.exe");
-                            Console.WriteLine($"Starting {exePath}");
-
-                            Process.Start(new ProcessStartInfo
-                            {
-                                FileName = exePath,
-                                UseShellExecute = true
-                            });
-                        }
-                        catch { }
-                    }
-                }
+                restart = true;
             }
-#if !DEBUG
-            catch (Exception ex)
+            else if (zipPath == null)
+            {
+                zipPath = arg;
+            }
+
+            if (restart && zipPath != null)
+            {
+                return true;
+            }
+        }
+
+        return zipPath != null;
+    }
+
+    private static void Run(string zipPath, bool restart)
+    {
+        try
+        {
+            var baseDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            Directory.SetCurrentDirectory(baseDir);
+
+            if (new Updater(baseDir).StartInstall(zipPath) && restart)
             {
                 try
                 {
-                    Thread.CurrentThread.CurrentUICulture = new System.Globalization.CultureInfo("en-US");
+                    var parentDir = Directory.GetParent(baseDir)!.FullName;
+                    var exePath = Path.Combine(parentDir, "chatterino.exe");
 
-                    Console.WriteLine("An unexpected error has occured. You might have to redownload the chatterino installer.\n\n" + ex.Message);
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = exePath,
+                        UseShellExecute = true,
+                        WorkingDirectory = parentDir
+                    });
                 }
                 catch { }
             }
-#endif
         }
-
-        private static bool RunUpdater()
+        catch (Exception ex) when (!Debugger.IsAttached)
         {
-            var updater = new Updater();
-            return updater.StartInstall();
+            try
+            {
+                NativeUI.ShowError("An unexpected error has occured", "You might have to redownload the chatterino installer.\n\n" + ex.Message);
+            }
+            catch { }
         }
     }
 }

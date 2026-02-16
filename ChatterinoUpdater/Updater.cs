@@ -1,115 +1,165 @@
-﻿using System;
+﻿using ChatterinoUpdater.Interop;
+using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace ChatterinoUpdater
-{
-    public class Updater
-    {
-        private readonly string _ownDirectory;
+namespace ChatterinoUpdater;
 
-        public Updater()
+public class Updater
+{
+    private readonly string _ownDirectory;
+
+    public Updater(string ownDirectory)
+    {
+        _ownDirectory = ownDirectory;
+    }
+
+    public bool StartInstall(string zipPath)
+    {
+        if (!TryOpenZip(zipPath, out var zipArchive))
+            return false;
+
+        bool success;
+
+        using (zipArchive)
         {
-            _ownDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            success = InstallWithRetry(zipArchive);
         }
 
-        public bool StartInstall()
+        if (success)
         {
-            var parentDir = Directory.GetParent(_ownDirectory)!.FullName;
-            var miscDir = Path.Combine(parentDir, "Misc");
-            var zipPath = Path.Combine(miscDir, "update.zip");
+            File.Delete(zipPath);
+        }
 
+        return true;
+    }
+
+    private static bool TryOpenZip(string path, [NotNullWhen(true)] out ZipArchive? zipArchive)
+    {
+        zipArchive = null;
+
+        try
+        {
+            var stream = File.OpenRead(path);
             try
             {
-                using (var fileStream = File.OpenRead(zipPath))
-                using (var zipArchive = new ZipArchive(fileStream, ZipArchiveMode.Read))
-                {
-                    var retry = true;
-                    while (retry)
-                    {
-                        try
-                        {
-                            ProcessZipFile(zipArchive);
-                            retry = false;
-                            Console.WriteLine();
-                        }
-                        catch
-                        {
-                            Console.Write("Do you want to retry or close? (R/c): ");
-                            var line = Console.ReadLine();
-                            if (!string.IsNullOrWhiteSpace(line) && line.Trim().Equals("c", StringComparison.OrdinalIgnoreCase))
-                            {
-                                retry = false;
-                            }
-                        }
-                    }
-                }
-                File.Delete(zipPath);
+                zipArchive = new ZipArchive(stream, ZipArchiveMode.Read);
             }
             catch
             {
-                Console.WriteLine("Error: Update package not found.\nPress any key to close.");
-                Console.ReadKey();
-                return false;
+                stream.Dispose();
+                throw;
             }
             return true;
         }
-
-        private void ProcessZipFile(ZipArchive archive)
+        catch
         {
-            var entries = archive.Entries.Where(x => !string.IsNullOrEmpty(x.Name));
-            var fileCount = entries.Count();
-            var currentFile = 1;
-            foreach (var entry in entries)
+            NativeUI.ShowError("Update package not found", $"Could not find:\n{path}");
+            return false;
+        }
+    }
+
+    private bool InstallWithRetry(ZipArchive zipArchive)
+    {
+        var retry = true;
+
+        while (retry)
+        {
+            try
             {
-                try
-                {
-                    Console.Write($"\rInstalling file {currentFile} of {fileCount}");
-                    ProcessEntry(entry);
-                    currentFile++;
-                }
-                catch (Exception exc)
-                {
-                    var message = exc.Message;
-                    message += "\n\nIf you have the browser extension enabled you might need to close chrome.";
-                    Console.WriteLine(message);
-                    Console.WriteLine(exc);
-                    throw; // Pass down exception without changing things like line number
-                }
+                ProcessZipFile(zipArchive);
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                return false;
+            }
+            catch (Exception ex)
+            {
+                retry = NativeUI.ShowRetryCancel(
+                    "An error occurred during the update",
+                    $"{ex.Message}\n\nIf you have the browser extension enabled, you might need to close Chrome.");
             }
         }
 
-        private void ProcessEntry(ZipArchiveEntry entry)
-        {
-            // skip directories
-            if (string.IsNullOrEmpty(entry.Name))
-                return;
+        return false;
+    }
 
-            // skip if same name as this directory
-            var entryName = Regex.Replace(entry.FullName, "^Chatterino2/", "");
+    private void ProcessZipFile(ZipArchive archive)
+    {
+        var entries = archive.Entries.Where(x => !string.IsNullOrEmpty(x.Name)).ToList();
+        var fileCount = entries.Count;
+        var cancelled = false;
+        Exception? error = null;
 
-            if (entryName.StartsWith(_ownDirectory))
-                return;
-
-            if (entry.Name.Equals("ChatterinoUpdater.exe", StringComparison.OrdinalIgnoreCase))
-                return;
-
-            // extract the file
-            var outPath = Path.Combine("..", entryName);
-
-            // create directory if needed
-            var directoryName = Path.GetDirectoryName(outPath);
-            if (!string.IsNullOrEmpty(directoryName))
+        NativeUI.ShowProgressDialog(
+            "Installing update...",
+            fileCount,
+            (reportProgress, isCancelled) =>
             {
-                Directory.CreateDirectory(directoryName);
-            }
+                for (var i = 0; i < entries.Count; i++)
+                {
+                    if (isCancelled())
+                    {
+                        cancelled = true;
+                        return;
+                    }
 
-            // write the file
-            using var input = entry.Open();
-            using var output = File.Create(outPath);
-            input.CopyTo(output);
+                    var entry = entries[i];
+                    var current = i + 1;
+
+                    reportProgress(current, $"Installing file {current} of {fileCount}: {entry.Name}");
+
+                    try
+                    {
+                        ProcessEntry(entry);
+                    }
+                    catch (Exception ex)
+                    {
+                        error = ex;
+                        return;
+                    }
+                }
+            });
+
+        if (cancelled)
+            throw new OperationCanceledException("Update cancelled by user.");
+
+        if (error != null)
+            throw error;
+    }
+
+    private void ProcessEntry(ZipArchiveEntry entry)
+    {
+        // skip directories
+        if (string.IsNullOrEmpty(entry.Name))
+            return;
+
+        // skip if same name as this directory
+        var entryName = Regex.Replace(entry.FullName, "^Chatterino2/", "");
+
+        if (entryName.StartsWith(_ownDirectory))
+            return;
+
+        if (entry.Name.Equals("ChatterinoUpdater.exe", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        // extract the file
+        var outPath = Path.Combine("..", entryName);
+
+        // create directory if needed
+        var directoryName = Path.GetDirectoryName(outPath);
+        if (!string.IsNullOrEmpty(directoryName))
+        {
+            Directory.CreateDirectory(directoryName);
         }
+
+        // write the file
+        using var input = entry.Open();
+        using var output = File.Create(outPath);
+        input.CopyTo(output);
     }
 }
