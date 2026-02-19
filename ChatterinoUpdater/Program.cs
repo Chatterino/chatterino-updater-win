@@ -8,6 +8,7 @@ namespace ChatterinoUpdater
 {
     internal static class Program
     {
+        [STAThread]
         private static void Main(string[] args)
         {
             if (!TryParseArgs(args, out var zipPath, out var restart))
