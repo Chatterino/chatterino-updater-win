@@ -1,4 +1,6 @@
-﻿using System;
+﻿using ChatterinoUpdater.Interop;
+using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -10,75 +12,124 @@ namespace ChatterinoUpdater
     {
         private readonly string _ownDirectory;
 
-        public Updater()
+        public Updater(string ownDirectory)
         {
-            _ownDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            _ownDirectory = ownDirectory;
         }
 
-        public bool StartInstall()
+        public bool StartInstall(string zipPath)
         {
-            var parentDir = Directory.GetParent(_ownDirectory)!.FullName;
-            var miscDir = Path.Combine(parentDir, "Misc");
-            var zipPath = Path.Combine(miscDir, "update.zip");
+            if (!TryOpenZip(zipPath, out var zipArchive))
+                return false;
+
+            bool success;
+
+            using (zipArchive)
+            {
+                success = InstallWithRetry(zipArchive);
+            }
+
+            if (success)
+            {
+                File.Delete(zipPath);
+            }
+
+            return true;
+        }
+
+        private static bool TryOpenZip(string path, [NotNullWhen(true)] out ZipArchive? zipArchive)
+        {
+            zipArchive = null;
 
             try
             {
-                using (var fileStream = File.OpenRead(zipPath))
-                using (var zipArchive = new ZipArchive(fileStream, ZipArchiveMode.Read))
+                var stream = File.OpenRead(path);
+                try
                 {
-                    var retry = true;
-                    while (retry)
-                    {
-                        try
-                        {
-                            ProcessZipFile(zipArchive);
-                            retry = false;
-                            Console.WriteLine();
-                        }
-                        catch
-                        {
-                            Console.Write("Do you want to retry or close? (R/c): ");
-                            var line = Console.ReadLine();
-                            if (!string.IsNullOrWhiteSpace(line) && line.Trim().Equals("c", StringComparison.OrdinalIgnoreCase))
-                            {
-                                retry = false;
-                            }
-                        }
-                    }
+                    zipArchive = new ZipArchive(stream, ZipArchiveMode.Read);
                 }
-                File.Delete(zipPath);
+                catch
+                {
+                    stream.Dispose();
+                    throw;
+                }
+                return true;
             }
             catch
             {
-                Console.WriteLine("Error: Update package not found.\nPress any key to close.");
-                Console.ReadKey();
+                NativeUI.ShowError("Update package not found", $"Could not find:\n{path}");
                 return false;
             }
-            return true;
+        }
+
+        private bool InstallWithRetry(ZipArchive zipArchive)
+        {
+            var retry = true;
+
+            while (retry)
+            {
+                try
+                {
+                    ProcessZipFile(zipArchive);
+                    return true;
+                }
+                catch (OperationCanceledException)
+                {
+                    return false;
+                }
+                catch (Exception ex)
+                {
+                    retry = NativeUI.ShowRetryCancel(
+                        "An error occurred during the update",
+                        $"{ex.Message}\n\nIf you have the browser extension enabled, you might need to close Chrome.");
+                }
+            }
+
+            return false;
         }
 
         private void ProcessZipFile(ZipArchive archive)
         {
-            var entries = archive.Entries.Where(x => !string.IsNullOrEmpty(x.Name));
-            var fileCount = entries.Count();
-            var currentFile = 1;
-            foreach (var entry in entries)
-            {
-                try
+            var entries = archive.Entries.Where(x => !string.IsNullOrEmpty(x.Name)).ToList();
+            var fileCount = entries.Count;
+            var cancelled = false;
+            Exception? error = null;
+
+            NativeUI.ShowProgressDialog(
+                "Installing update...",
+                fileCount,
+                (reportProgress, isCancelled) =>
                 {
-                    Console.Write($"\rInstalling file {currentFile} of {fileCount}");
-                    ProcessEntry(entry);
-                    currentFile++;
-                }
-                catch (Exception exc)
-                {
-                    var message = exc.Message;
-                    message += "\n\nIf you have the browser extension enabled you might need to close chrome.";
-                    Console.WriteLine(message);
-                    Console.WriteLine(exc);
-                    throw; // Pass down exception without changing things like line number
-                }
-            }
+                    for (var i = 0; i < entries.Count; i++)
+                    {
+                        if (isCancelled())
+                        {
+                            cancelled = true;
+                            return;
+                        }
+
+                        var entry = entries[i];
+                        var current = i + 1;
+
+                        reportProgress(current, $"Installing file {current} of {fileCount}: {entry.Name}");
+
+                        try
+                        {
+                            ProcessEntry(entry);
+                        }
+                        catch (Exception ex)
+                        {
+                            error = ex;
+                            return;
+                        }
+                    }
+                });
+
+            if (cancelled)
+                throw new OperationCanceledException("Update cancelled by user.");
+
+            if (error != null)
+                throw error;
         }
 
         private void ProcessEntry(ZipArchiveEntry entry)
